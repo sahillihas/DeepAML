@@ -1,55 +1,125 @@
-# DeepAML - Deep Anti-Money Laundering Detection System
-
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+# DeepAML: Real-time Anti-Money Laundering Detection System
 
 ## Overview
+DeepAML is a real-time anti-money laundering detection system that combines pattern recognition with live monitoring capabilities. The system can both detect suspicious patterns in real-time and simulate various types of money laundering attacks for testing and validation purposes.
 
-DeepAML is a state-of-the-art anti-money laundering (AML) detection system that combines advanced graph analytics with deep learning to identify sophisticated money laundering patterns. By analyzing complex transaction networks and behavioral patterns, the system provides financial institutions with powerful tools to combat financial crime.
+## Key Features
 
-Key capabilities:
-- Real-time transaction monitoring
-- Advanced pattern recognition using graph neural networks
-- Automated risk assessment and case generation
-- Regulatory compliance support (FinCEN, FATF guidelines)
+### Real-time Monitoring
+- Live transaction monitoring with instant alerts for high-confidence patterns (>90% confidence)
+- Periodic analysis (configurable interval, default 60 seconds) for complex pattern detection
+- Support for both immediate and batch pattern detection
+- Continuous file monitoring with efficient transaction processing
 
-## Features
+### Pattern Detection
+- **Structuring (Smurfing)**: Detection of multiple small transactions to avoid reporting thresholds
+- **Layering**: Identification of complex transaction chains through multiple intermediaries
+- **Round-Trip**: Detection of funds returning to origin through multiple hops
+- **Rapid Movement**: Identification of quick successive transfers
+- **Fan-in/Fan-out**: Detection of many-to-one and one-to-many transaction patterns
 
-- **Data Ingestion & Processing**
-  - Multiple data source support (JSON, CSV, DataFrames, SQL databases)
-  - Real-time streaming capabilities via Apache Kafka
-  - Automated data cleaning and standardization
-  - Entity resolution and deduplication
+### Attack Simulation
+- Interactive command-line interface for attack pattern generation
+- Support for both immediate and scheduled attacks
+- Detailed attack reporting with transaction flows and risk metrics
+- Multiple attack patterns supported:
+  - Structuring: Break large amounts into smaller transactions
+  - Layering: Create complex chains of transactions
+  - Round-Trip: Generate circular transaction patterns
+  - Rapid Movement: Create quick successive transfers
+  - Fan-in: Simulate multiple sources to one destination
+  - Fan-out: Simulate one source to multiple destinations
 
-- **Knowledge Graph Construction**
-  - Flexible graph backend (NetworkX/Neo4j)
-  - Temporal transaction modeling
-  - Entity relationship mapping
-  - Hierarchical account structure support
+### Risk Analysis
+- Real-time risk scoring for individual transactions
+- Pattern-specific risk assessment
+- Composite risk calculation based on multiple factors
+- Dynamic thresholding based on pattern types
 
-- **Advanced Analytics**
-  - Graph Neural Network (GNN) based pattern detection
-  - Temporal pattern analysis
-  - Behavioral profiling
-  - Anomaly detection using embedding spaces
-  
-- **Pattern Detection**
-  - Cycle Detection (Round-tripping)
-  - Structuring Patterns (Smurfing)
-  - Layering Schemes
-  - Fan-in/Fan-out Analysis
-  - Rapid Movement Detection
-  - Shell Company Pattern Recognition
+## Usage
 
-- **Risk Scoring**: Entity-level and transaction-level risk assessment
-- **Case Management**: Automated case generation and management
-- **Reporting**: Detailed reports and Suspicious Activity Report (SAR) generation
+### Real-time Monitoring
+```bash
+python src/main.py --mode monitor --file /path/to/transactions.json [options]
 
-## Requirements
+Options:
+  --risk-threshold FLOAT    Risk threshold for alerting (0.0-1.0, default: 0.7)
+  --check-interval INT      Interval in seconds for periodic checks (default: 60)
+  --log-level LEVEL        Logging level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+```
 
-- Python 3.8 or higher
-- See `requirements.txt` for Python package dependencies
+### Attack Simulation
+```bash
+python src/main.py --mode simulate --file /path/to/transactions.json
+
+Interactive menu options:
+1. Structuring Pattern
+2. Layering Pattern
+3. Round-Trip Pattern
+4. Rapid Movement Pattern
+5. Fan-In Pattern
+6. Fan-Out Pattern
+7. Random Pattern
+8. Schedule an Attack
+9. View Scheduled Attacks
+10. Exit
+```
+
+## Transaction Format
+The system expects transactions in JSON format:
+```json
+{
+  "transactions": [
+    {
+      "transaction_id": "TX123",
+      "timestamp": "2025-05-03T10:30:00",
+      "amount": 5000.00,
+      "currency": "USD",
+      "sender": "ACC001",
+      "sender_name": "Entity_001",
+      "sender_bank": "Bank_A",
+      "sender_country": "US",
+      "receiver": "ACC002",
+      "receiver_name": "Entity_002",
+      "receiver_bank": "Bank_B",
+      "receiver_country": "GB",
+      "reference": "Payment_123"
+    }
+  ]
+}
+```
+
+## Pattern Detection Methods
+
+### 1. Structuring Detection
+- Monitors transactions below reporting thresholds
+- Groups transactions by sender-receiver pairs
+- Analyzes transaction patterns within configurable time windows
+- Risk factors: total amount, number of transactions, time span
+
+### 2. Layering Detection
+- Builds transaction graph for path analysis
+- Identifies complex transaction chains
+- Considers intermediary accounts and jurisdictions
+- Risk factors: number of hops, jurisdictions involved, amount variations
+
+### 3. Round-Trip Detection
+- Identifies circular transaction patterns
+- Analyzes fund flow returning to origin
+- Considers time windows and amount variations
+- Risk factors: cycle length, time to complete, amount differences
+
+### 4. Rapid Movement Detection
+- Monitors transaction velocity
+- Identifies quick successive transfers
+- Analyzes transaction chains and timing
+- Risk factors: transfer speed, number of hops, amount patterns
+
+### 5. Fan Patterns Detection
+- Analyzes many-to-one (fan-in) and one-to-many (fan-out) patterns
+- Considers transaction timing and amounts
+- Monitors source/destination diversity
+- Risk factors: number of participants, amount distribution, geographic spread
 
 ## Installation
 
@@ -62,7 +132,7 @@ cd DeepAML
 2. Create a virtual environment:
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
 3. Install dependencies:
@@ -70,88 +140,8 @@ source venv/bin/activate  # On Windows use: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Usage
-
-1. Prepare your transaction data in JSON format:
-```json
-[
-    {
-        "transaction_id": "TX001",
-        "sender_account": "ACC001",
-        "sender_name": "John Doe",
-        "sender_bank": "Bank A",
-        "sender_country": "US",
-        "recipient_account": "ACC002",
-        "recipient_name": "Jane Smith",
-        "recipient_bank": "Bank B",
-        "recipient_country": "UK",
-        "amount": 50000,
-        "currency": "USD",
-        "timestamp": "2023-01-01T10:00:00"
-    }
-]
-```
-
-2. Run the system:
-```bash
-python main.py
-```
-
-## Configuration
-
-- Neo4j Configuration (Optional):
-  - Set environment variables for Neo4j connection:
-    ```bash
-    export NEO4J_URI="bolt://localhost:7687"
-    export NEO4J_USER="neo4j"
-    export NEO4J_PASSWORD="your_password"
-    ```
-
-## Output
-
-The system generates:
-1. Summary reports of detected patterns
-2. Risk scores for entities
-3. Suspicious Activity Reports (SARs) for high-risk cases
-4. Visualization of transaction networks (when using NetworkX)
-
-## Architecture
-
-```
-DeepAML/
-├── core/              # Core system components
-├── models/            # ML/DL models
-├── graph_ops/         # Graph operations
-├── data_handlers/     # Data processing
-├── api/              # REST API
-└── utils/            # Utility functions
-```
-
-## Implementation Details
-
-The system implements several key algorithms:
-- Graph Neural Networks (GNN) for pattern recognition
-- Temporal Graph Attention Networks
-- Node2Vec for entity embedding
-- LSTM-based anomaly detection
-
 ## Contributing
+Please read CONTRIBUTING.md for details on our code of conduct and the process for submitting pull requests.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-Thanks
-## Citation
-
-If you use DeepAML in your research, please cite:
-```bibtex
-@software{deepaml2023,
-  author = {Your Name},
-  title = {DeepAML: Deep Learning-based Anti-Money Laundering Detection},
-  year = {2023},
-  url = {https://github.com/yourusername/DeepAML}
-}
-```
+## License
+This project is licensed under the MIT License - see the LICENSE file for details.
