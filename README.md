@@ -1,72 +1,103 @@
-# DeepAML: Real-time Anti-Money Laundering Detection System
+# DeepAML: A Real-Time Anti-Money Laundering Detection System
 
-## Overview
-DeepAML is a real-time anti-money laundering detection system that combines pattern recognition with live monitoring capabilities. The system can both detect suspicious patterns in real-time and simulate various types of money laundering attacks for testing and validation purposes.
+## 🚀 Overview
 
-## Key Features
+**DeepAML** is a real-time system designed to detect and analyze suspicious financial activities, particularly those related to money laundering. It combines live transaction monitoring with smart pattern recognition and even includes a simulation engine to help you test how the system handles different types of laundering strategies.
 
-### Real-time Monitoring
-- Live transaction monitoring with instant alerts for high-confidence patterns (>90% confidence)
-- Periodic analysis (configurable interval, default 60 seconds) for complex pattern detection
-- Support for both immediate and batch pattern detection
-- Continuous file monitoring with efficient transaction processing
+Whether you're working on real-world AML applications or building a proof-of-concept, DeepAML is designed to give you the tools to both detect and simulate fraudulent behaviors efficiently.
 
-### Pattern Detection
-- **Structuring (Smurfing)**: Detection of multiple small transactions to avoid reporting thresholds
-- **Layering**: Identification of complex transaction chains through multiple intermediaries
-- **Round-Trip**: Detection of funds returning to origin through multiple hops
-- **Rapid Movement**: Identification of quick successive transfers
-- **Fan-in/Fan-out**: Detection of many-to-one and one-to-many transaction patterns
+---
 
-### Attack Simulation
-- Interactive command-line interface for attack pattern generation
-- Support for both immediate and scheduled attacks
-- Detailed attack reporting with transaction flows and risk metrics
-- Multiple attack patterns supported:
-  - Structuring: Break large amounts into smaller transactions
-  - Layering: Create complex chains of transactions
-  - Round-Trip: Generate circular transaction patterns
-  - Rapid Movement: Create quick successive transfers
-  - Fan-in: Simulate multiple sources to one destination
-  - Fan-out: Simulate one source to multiple destinations
+## 🔍 Key Features
 
-### Risk Analysis
-- Real-time risk scoring for individual transactions
-- Pattern-specific risk assessment
-- Composite risk calculation based on multiple factors
-- Dynamic thresholding based on pattern types
+### 🕵️ Real-Time Monitoring
 
-## Usage
+* Instantly detects and alerts on suspicious patterns with high confidence (90%+).
+* Periodic checks (default every 60 seconds) to uncover more complex behavior.
+* Supports both real-time and batch analysis of transactions.
+* Monitors incoming files continuously for seamless transaction tracking.
 
-### Real-time Monitoring
+### 🧠 Smart Pattern Detection
+
+DeepAML is built to spot common laundering techniques like:
+
+* **Structuring (Smurfing)**: Breaking large transactions into smaller ones to avoid detection.
+* **Layering**: Moving money through multiple accounts to obscure its origin.
+* **Round-Trip**: Sending funds out and bringing them back through a chain of hops.
+* **Rapid Movement**: Quick successive transactions indicating potential laundering.
+* **Fan-In / Fan-Out**: Many-to-one or one-to-many transaction patterns, often used to obscure trails.
+
+### 🧪 Attack Simulation
+
+Test the system’s detection capabilities with built-in laundering scenario simulations:
+
+* Interactive CLI interface for generating patterns.
+* Choose between immediate or scheduled simulations.
+* Detailed reports including risk scores and transaction flow diagrams.
+
+Available simulations include:
+
+* Structuring
+* Layering
+* Round-Trip
+* Rapid Movement
+* Fan-In and Fan-Out
+* Random combinations
+* Scheduling future simulations
+
+### 📊 Risk Scoring Engine
+
+* Assigns risk scores to individual transactions in real-time.
+* Calculates pattern-specific and combined risk metrics.
+* Supports adaptive thresholds depending on the pattern type detected.
+
+---
+
+## 🛠️ How to Use
+
+### Real-Time Monitoring
+
+Monitor a file with transactions and receive alerts in real time:
+
 ```bash
-python src/main.py --mode monitor --file /path/to/transactions.json [options]
-
-Options:
-  --risk-threshold FLOAT    Risk threshold for alerting (0.0-1.0, default: 0.7)
-  --check-interval INT      Interval in seconds for periodic checks (default: 60)
-  --log-level LEVEL        Logging level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+python src/main.py --mode monitor --file /path/to/transactions.json
 ```
 
-### Attack Simulation
+Optional parameters:
+
+* `--risk-threshold FLOAT` – Set the minimum risk score to trigger an alert (default: 0.7)
+* `--check-interval INT` – Frequency of periodic scans in seconds (default: 60)
+* `--log-level LEVEL` – Logging verbosity (DEBUG, INFO, WARNING, etc.)
+
+### Running Simulations
+
+Launch the CLI tool to simulate laundering scenarios:
+
 ```bash
 python src/main.py --mode simulate --file /path/to/transactions.json
+```
 
-Interactive menu options:
-1. Structuring Pattern
-2. Layering Pattern
-3. Round-Trip Pattern
-4. Rapid Movement Pattern
-5. Fan-In Pattern
-6. Fan-Out Pattern
+From there, you’ll see an interactive menu like:
+
+```
+1. Structuring
+2. Layering
+3. Round-Trip
+4. Rapid Movement
+5. Fan-In
+6. Fan-Out
 7. Random Pattern
 8. Schedule an Attack
 9. View Scheduled Attacks
 10. Exit
 ```
 
-## Transaction Format
-The system expects transactions in JSON format:
+---
+
+## 📄 Transaction Format
+
+DeepAML works with transactions formatted as JSON. Here’s an example:
+
 ```json
 {
   "transactions": [
@@ -89,59 +120,74 @@ The system expects transactions in JSON format:
 }
 ```
 
-## Pattern Detection Methods
+---
 
-### 1. Structuring Detection
-- Monitors transactions below reporting thresholds
-- Groups transactions by sender-receiver pairs
-- Analyzes transaction patterns within configurable time windows
-- Risk factors: total amount, number of transactions, time span
+## 🧩 How Detection Works
 
-### 2. Layering Detection
-- Builds transaction graph for path analysis
-- Identifies complex transaction chains
-- Considers intermediary accounts and jurisdictions
-- Risk factors: number of hops, jurisdictions involved, amount variations
+### Structuring
 
-### 3. Round-Trip Detection
-- Identifies circular transaction patterns
-- Analyzes fund flow returning to origin
-- Considers time windows and amount variations
-- Risk factors: cycle length, time to complete, amount differences
+* Identifies multiple small transactions sent to avoid thresholds.
+* Groups data by sender/receiver and analyzes over a time window.
+* Risk factors: total sum, frequency, and spread over time.
 
-### 4. Rapid Movement Detection
-- Monitors transaction velocity
-- Identifies quick successive transfers
-- Analyzes transaction chains and timing
-- Risk factors: transfer speed, number of hops, amount patterns
+### Layering
 
-### 5. Fan Patterns Detection
-- Analyzes many-to-one (fan-in) and one-to-many (fan-out) patterns
-- Considers transaction timing and amounts
-- Monitors source/destination diversity
-- Risk factors: number of participants, amount distribution, geographic spread
+* Creates a transaction graph to follow the money trail.
+* Flags long or complex chains using multiple intermediaries.
+* Risk factors: number of hops, jurisdictions involved, amount variation.
 
-## Installation
+### Round-Trip
 
-1. Clone the repository:
+* Detects funds sent out and returned via different routes.
+* Looks for cyclical transaction paths.
+* Risk factors: loop length, timing, and amounts.
+
+### Rapid Movement
+
+* Flags accounts with high transaction velocity.
+* Evaluates both chain length and timing.
+* Risk factors: speed, hop count, and transaction consistency.
+
+### Fan-In / Fan-Out
+
+* Fan-In: Many sources sending to a single account.
+* Fan-Out: One source dispersing funds to many recipients.
+* Risk factors: volume of accounts involved, amount spread, geography.
+
+---
+
+## 📦 Installation
+
+1. Clone the repo:
+
 ```bash
 git clone https://github.com/yourusername/DeepAML.git
 cd DeepAML
 ```
 
-2. Create a virtual environment:
+2. Set up a virtual environment:
+
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. Install dependencies:
+3. Install the dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-## Contributing
-Please read CONTRIBUTING.md for details on our code of conduct and the process for submitting pull requests.
+---
 
-## License
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 🤝 Contributing
+
+We welcome contributions! Please see `CONTRIBUTING.md` for details on our code of conduct and how to submit pull requests.
+
+---
+
+## 📜 License
+
+DeepAML is released under the MIT License. See the `LICENSE` file for more information.
+
+---
