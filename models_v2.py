@@ -53,8 +53,11 @@ class Box(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
 
     @property
-    def customer_assignment(self):
-        return self.box_assignment.first() if hasattr(self, 'box_assignment') else None
+    def box_assignment(self):
+        try:
+            return Customer.objects.get(assigned_box=self)
+        except Customer.DoesNotExist:
+            return None
 
     @property
     def is_assigned(self):
@@ -106,7 +109,7 @@ class Box(models.Model):
 
     def unassign_from_customer(self, user, reason=''):
         with transaction.atomic():
-            if not self.box_assignment:
+            if not hasattr(self, 'box_assignment'):
                 raise ValueError(f'Box {self.box_number} is not assigned to any customer')
             customer = self.box_assignment
             customer.assigned_box = None
@@ -124,7 +127,7 @@ class Box(models.Model):
             return True
 
     def recharge(self, plan, months, user):
-        if not self.customer_assignment:
+        if not self.box_assignment:
             raise ValueError('Cannot recharge box that is not assigned to a customer')
         with transaction.atomic():
             self.current_plan = plan
@@ -251,7 +254,8 @@ class Payment(models.Model):
         ('bank_transfer', 'Bank Transfer'),
         ('other', 'Other')
     ]
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    box = models.ForeignKey(Box, on_delete=models.CASCADE)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)  # For historical records
     plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     date = models.DateTimeField(auto_now_add=True)
@@ -262,6 +266,15 @@ class Payment(models.Model):
     remarks = models.TextField(blank=True)
     transaction_id = models.CharField(max_length=100, blank=True)
     months_recharged = models.IntegerField(default=1)
+
+    @property
+    def status_color(self):
+        color_map = {
+            'paid': 'success',
+            'pending': 'warning',
+            'failed': 'danger'
+        }
+        return color_map.get(self.status, 'secondary')
 
     def __str__(self):
         return f"{self.customer.name} - ₹{self.amount} ({self.get_status_display()})"
