@@ -11,7 +11,6 @@ class PatternType(Enum):
     """Types of money laundering patterns"""
     STRUCTURING = "structuring"
     LAYERING = "layering"
-    ROUND_TRIP = "round_trip"
     RAPID_MOVEMENT = "rapid_movement"
     FAN_IN = "fan_in"
     FAN_OUT = "fan_out"
