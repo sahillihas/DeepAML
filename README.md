@@ -2,9 +2,9 @@
 
 ## 🚀 Overview
 
-**DeepAML** is a real-time system designed to detect and analyze suspicious financial activities, particularly those related to money laundering. It combines live transaction monitoring with smart pattern recognition and even includes a simulation engine to help you test how the system handles different types of laundering strategies.
+**DeepAML** is a real-time system designed to detect and analyse suspicious financial activities, particularly those related to money laundering. It combines live transaction monitoring with smart pattern recognition and even includes a simulation engine to help you test how the system handles different types of laundering strategies.
 
-Whether you're working on real-world AML applications or building a proof-of-concept, DeepAML is designed to give you the tools to both detect and simulate fraudulent behaviors efficiently.
+Whether you're working on real-world AML applications or building a proof-of-concept, DeepAML is designed to give you the tools to both detect and simulate fraudulent behaviours efficiently.
 
 ---
 
@@ -13,11 +13,11 @@ Whether you're working on real-world AML applications or building a proof-of-con
 ### 🕵️ Real-Time Monitoring
 
 * Instantly detects and alerts on suspicious patterns with high confidence (90%+).
-* Periodic checks (default every 60 seconds) to uncover more complex behavior.
+* Periodic checks (default every 60 seconds) to uncover more complex behaviour.
 * Supports both real-time and batch analysis of transactions.
 * Monitors incoming files continuously for seamless transaction tracking.
 
-### 🧠 Smart Pattern Detection
+### 🧠 Auto Pattern Detection
 
 DeepAML is built to spot common laundering techniques like:
 
