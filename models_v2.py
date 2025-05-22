@@ -20,9 +20,6 @@ class Plan(models.Model):
     class Meta:
         ordering = ['name']
 
-    @property
-    def is_expired(self):
-        return not self.is_active
 
     def toggle_status(self):
         self.is_active = not self.is_active
