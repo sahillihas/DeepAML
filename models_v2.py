@@ -14,9 +14,6 @@ class Plan(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(default=timezone.now)
 
-    def __str__(self):
-        return f"{self.name} ({self.speed})"
-
     class Meta:
         ordering = ['name']
 
