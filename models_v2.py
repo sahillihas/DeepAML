@@ -12,7 +12,7 @@ class Plan(models.Model):
     validity_days = models.IntegerField()
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
-    created_by = models.DateTimeField(default=timezone.now)
+    created_by = models.CharField(max_length=100)
     modified_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
