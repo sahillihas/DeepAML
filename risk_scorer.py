@@ -4,7 +4,8 @@ class RiskScorer:
     def __init__(self):
         # Risk thresholds
         self.high_risk_threshold = 0.7
-        self.medium_risk_threshold = 0.4
+        self.medium_risk_threshold = 0.5
+        self.low_risk_threshold = 0.3
         
         # Feature weights for risk calculation
         self.weights = {
@@ -53,3 +54,4 @@ class RiskScorer:
     def is_suspicious(self, risk_score: float) -> bool:
         """Determine if transaction is suspicious based on risk score"""
         return risk_score >= self.high_risk_threshold
+        #need to change this
