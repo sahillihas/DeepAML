@@ -17,6 +17,7 @@ class Plan(models.Model):
 
     class Meta:
         ordering = ['name']
+        ordering = ['bank_acc']
 
 
     def toggle_status(self):
