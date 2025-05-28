@@ -1,7 +1,3 @@
-"""
-Models and Enums for AML Detection System
-"""
-
 from enum import Enum, auto
 from dataclasses import dataclass, field
 from datetime import datetime
