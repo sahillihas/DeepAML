@@ -15,7 +15,7 @@ logger = logging.getLogger("AML_System.KnowledgeGraph")
 
 
 class KnowledgeGraphBuilder:
-    """Constructs and manages a transaction knowledge graph."""
+    """ Constructs and manages a transaction knowledge graph."""
 
     def __init__(self, use_neo4j: bool = False, neo4j_uri: str = None, neo4j_user: str = None, neo4j_password: str = None):
         self.use_neo4j = use_neo4j
@@ -33,11 +33,11 @@ class KnowledgeGraphBuilder:
             logger.info("Using NetworkX for in-memory graph representation.")
 
     def build_graph(self, transactions: List[Dict[str, Any]]) -> Union[Graph, nx.MultiDiGraph]:
-        """Builds the knowledge graph using the specified backend."""
+        """ Builds the knowledge graph using the specified backend."""
         return self._build_neo4j_graph(transactions) if self.use_neo4j else self._build_networkx_graph(transactions)
 
     def _build_networkx_graph(self, transactions: List[Dict[str, Any]]) -> nx.MultiDiGraph:
-        """Builds a NetworkX graph from transaction data."""
+        """ Builds a NetworkX graph from transaction data."""
         self.graph.clear()
 
         for tx in transactions:
@@ -109,7 +109,7 @@ class KnowledgeGraphBuilder:
         return self.graph
 
     def visualize_graph(self, limit: int = 50):
-        """Visualizes the NetworkX graph."""
+        """ Visualises the NetworkX graph."""
         if self.use_neo4j:
             logger.warning("Visualization is only available for NetworkX backend.")
             return
