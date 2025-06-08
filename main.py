@@ -1,9 +1,4 @@
-#!/usr/bin/env python3
-"""
-DeepAML Police Dashboard
-------------------------
-Real-time monitoring interface for law enforcement
-"""
+
 
 import argparse
 import curses
@@ -131,6 +126,7 @@ class DashboardUI:
         self.header_window.box()
         self.header_window.addstr(1, 2, "🚔 DeepAML Police Dashboard 👮")
         self.header_window.refresh()
+        self.header_window.start()
 
     def _update_alerts(self):
         self.alerts_window.clear()
