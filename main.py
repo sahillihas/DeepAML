@@ -7,12 +7,12 @@ Real-time monitoring interface for law enforcement
 
 import argparse
 import curses
-import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from aml_detector import AMLDetector
 from models import PatternType
@@ -35,7 +35,6 @@ class DashboardUI:
         self.setup_windows()
 
     def _get_file_mtime(self) -> float:
-        """Safely get last modified time of the monitored file."""
         try:
             return os.path.getmtime(self.detector.monitor_file)
         except OSError:
@@ -43,7 +42,6 @@ class DashboardUI:
             return 0
 
     def check_file_changed(self) -> bool:
-        """Check if monitored file has been modified."""
         current_mtime = self._get_file_mtime()
         if current_mtime > self.last_file_mtime:
             self.last_file_mtime = current_mtime
@@ -52,7 +50,6 @@ class DashboardUI:
         return False
 
     def setup_windows(self):
-        """Initialize UI layout."""
         h, w = self.screen.getmaxyx()
         self.header_window = curses.newwin(3, w, 0, 0)
         self.alerts_window = curses.newwin(h - 6, w, 3, 0)
@@ -61,7 +58,6 @@ class DashboardUI:
         self.alerts_window.idlok(True)
 
     def refresh_screen(self):
-        """Refresh UI components."""
         try:
             if self.check_file_changed():
                 self._process_new_transactions()
@@ -73,7 +69,6 @@ class DashboardUI:
             logger.warning(f"Curses error during refresh: {e}")
 
     def _process_new_transactions(self):
-        """Handle and process newly loaded transactions."""
         new_txs = [
             tx for tx in self.detector.transactions
             if tx.get('transaction_id') not in self.processed_tx_ids
@@ -109,7 +104,6 @@ class DashboardUI:
         self.last_update = datetime.now()
 
     def _add_alert(self, pattern_type, tx, risk_score, details=None, injected=False):
-        """Create and add an alert to the dashboard."""
         pattern_type = str(pattern_type).upper().replace('-', '_')
         alert_id = f"ALT{len(self.current_alerts):06d}"
         timestamp = tx.get('timestamp') or datetime.now().isoformat()
@@ -202,6 +196,12 @@ class DashboardUI:
         )
         self.stats_window.refresh()
 
+    def run_loop(self):
+        """Main loop to refresh dashboard periodically."""
+        while True:
+            self.refresh_screen()
+            time.sleep(2)
+
 def main():
     parser = argparse.ArgumentParser(description="DeepAML Real-time Dashboard")
     parser.add_argument("--monitor_file", required=True, help="Path to transaction log file")
@@ -212,14 +212,6 @@ def main():
     detector.load_transactions(args.monitor_file)
 
     curses.wrapper(lambda stdscr: DashboardUI(detector, stdscr).run_loop())
-
-# Add run_loop to DashboardUI
-def run_loop(self):
-    while True:
-        self.refresh_screen()
-        time.sleep(2)
-
-DashboardUI.run_loop = run_loop
 
 if __name__ == "__main__":
     main()
