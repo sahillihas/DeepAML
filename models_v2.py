@@ -4,26 +4,34 @@ from django.conf import settings
 from django.contrib.auth.models import User
 
 
+class BoxType(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.name
+
+
 class Plan(models.Model):
     name = models.CharField(max_length=100)
-    box_type = models.ForeignKey('BoxType', on_delete=models.CASCADE, related_name='plans', null=True)
+    box_type = models.ForeignKey(BoxType, on_delete=models.CASCADE, related_name='plans', null=True)
     speed = models.CharField(max_length=50)
     price = models.DecimalField(max_digits=8, decimal_places=2)
     validity_days = models.IntegerField()
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
     created_by = models.CharField(max_length=100)
-    modified_at = models.DateTimeField(default=timezone.now)
+    modified_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['name']  # Removed duplicate 'ordering'
+        ordering = ['name']
 
     def toggle_status(self):
         self.is_active = not self.is_active
-        self.save()
+        self.save(update_fields=['is_active'])
 
     def __str__(self):
-        return f"{self.name} - ₹{self.price}"
+        return f"{self.name} ({self.speed}) - ₹{self.price}"
 
 
 class Box(models.Model):
@@ -36,7 +44,7 @@ class Box(models.Model):
         ('maintenance', 'Under Maintenance')
     ]
     box_number = models.CharField(max_length=50, unique=True)
-    box_type = models.ForeignKey('BoxType', on_delete=models.PROTECT)
+    box_type = models.ForeignKey(BoxType, on_delete=models.PROTECT)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
     current_plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True, blank=True)
     plan_end_date = models.DateField(null=True, blank=True)
@@ -52,7 +60,7 @@ class Box(models.Model):
 
     @property
     def is_assigned(self):
-        return self.box_assignment is not None
+        return hasattr(self, 'box_assignment_related') and self.box_assignment_related is not None
 
     @property
     def is_due(self):
@@ -73,13 +81,6 @@ class Box(models.Model):
     def days_until_due(self):
         today = timezone.now().date()
         return (self.plan_end_date - today).days if self.plan_end_date and self.is_assigned else None
-
-    @property
-    def box_assignment(self):
-        try:
-            return self.box_assignment_related.get()
-        except Customer.DoesNotExist:
-            return None
 
     def assign_to_customer(self, customer, user):
         with transaction.atomic():
@@ -103,7 +104,7 @@ class Box(models.Model):
         with transaction.atomic():
             if not self.is_assigned:
                 raise ValueError(f'Box {self.box_number} is not assigned')
-            customer = self.box_assignment
+            customer = self.box_assignment_related
             customer.assigned_box = None
             customer.save()
             self.status = 'available'
@@ -125,10 +126,7 @@ class Box(models.Model):
             self.current_plan = plan
             today = timezone.now().date()
             additional_days = months * 30
-            if self.plan_end_date and self.plan_end_date > today:
-                self.plan_end_date += timezone.timedelta(days=additional_days)
-            else:
-                self.plan_end_date = today + timezone.timedelta(days=additional_days)
+            self.plan_end_date = (self.plan_end_date + timezone.timedelta(days=additional_days)) if self.plan_end_date and self.plan_end_date > today else (today + timezone.timedelta(days=additional_days))
             self.status = 'assigned'
             self.save()
             BoxHistory.objects.create(
@@ -170,14 +168,17 @@ class Customer(models.Model):
     def save(self, *args, **kwargs):
         if not self.customer_id:
             with transaction.atomic():
-                last_customer = Customer.objects.select_for_update().order_by('-customer_id').first()
-                next_num = int(last_customer.customer_id[3:]) + 1 if last_customer and last_customer.customer_id else 1
-                self.customer_id = f'CUS{next_num:06d}'
+                prefix = 'CUS'
+                last = Customer.objects.select_for_update().filter(customer_id__startswith=prefix).order_by('-customer_id').first()
+                next_num = int(last.customer_id[len(prefix):]) + 1 if last else 1
+                self.customer_id = f'{prefix}{next_num:06d}'
+
         today = timezone.now().date()
         if self.assigned_box:
             self.status = 'active' if self.assigned_box.plan_end_date and self.assigned_box.plan_end_date >= today else 'inactive'
         else:
             self.status = 'new'
+
         super().save(*args, **kwargs)
 
 
@@ -221,6 +222,15 @@ class ServiceRequest(models.Model):
 
     def __str__(self):
         return f"{self.ticket_id or 'Untitled'} - {self.get_request_type_display()}"
+
+    def save(self, *args, **kwargs):
+        if not self.ticket_id:
+            with transaction.atomic():
+                prefix = 'SRQ'
+                last = ServiceRequest.objects.select_for_update().filter(ticket_id__startswith=prefix).order_by('-ticket_id').first()
+                next_num = int(last.ticket_id[len(prefix):]) + 1 if last and last.ticket_id else 1
+                self.ticket_id = f'{prefix}{next_num:06d}'
+        super().save(*args, **kwargs)
 
 
 class Payment(models.Model):
