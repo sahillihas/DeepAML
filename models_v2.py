@@ -1,7 +1,59 @@
 from django.db import models, transaction
 from django.utils import timezone
-from django.conf import settings
 from django.contrib.auth.models import User
+
+
+# Reusable choices can be defined at the top
+BOX_STATUS = [
+    ('available', 'Available'),
+    ('assigned', 'Assigned'),
+    ('pending_recharge', 'Pending Recharge'),
+    ('faulty', 'Faulty'),
+    ('retired', 'Retired'),
+    ('maintenance', 'Under Maintenance')
+]
+
+CUSTOMER_STATUS = [
+    ('new', 'New'),
+    ('active', 'Active'),
+    ('inactive', 'Inactive')
+]
+
+PAYMENT_STATUS = [
+    ('paid', 'Paid'),
+    ('pending', 'Pending'),
+    ('failed', 'Failed')
+]
+
+PAYMENT_METHODS = [
+    ('cash', 'Cash'),
+    ('upi', 'UPI'),
+    ('bank_transfer', 'Bank Transfer'),
+    ('other', 'Other')
+]
+
+SERVICE_TYPE = [
+    ('new_connection', 'New Connection'),
+    ('complaint', 'Complaint'),
+    ('upgrade', 'Upgrade'),
+    ('other', 'Other')
+]
+
+SERVICE_STATUS = [
+    ('open', 'Open'),
+    ('assigned', 'Assigned'),
+    ('in_progress', 'In Progress'),
+    ('closed', 'Closed')
+]
+
+BOX_ACTIONS = [
+    ('assigned', 'Assigned'),
+    ('unassigned', 'Unassigned'),
+    ('recharged', 'Recharged'),
+    ('maintenance', 'Maintenance'),
+    ('repaired', 'Repaired'),
+    ('retired', 'Retired')
+]
 
 
 class BoxType(models.Model):
@@ -17,7 +69,7 @@ class Plan(models.Model):
     box_type = models.ForeignKey(BoxType, on_delete=models.CASCADE, related_name='plans', null=True)
     speed = models.CharField(max_length=50)
     price = models.DecimalField(max_digits=8, decimal_places=2)
-    validity_days = models.IntegerField()
+    validity_days = models.PositiveIntegerField()
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
     created_by = models.CharField(max_length=100)
@@ -35,17 +87,9 @@ class Plan(models.Model):
 
 
 class Box(models.Model):
-    STATUS_CHOICES = [
-        ('available', 'Available'),
-        ('assigned', 'Assigned'),
-        ('pending_recharge', 'Pending Recharge'),
-        ('faulty', 'Faulty'),
-        ('retired', 'Retired'),
-        ('maintenance', 'Under Maintenance')
-    ]
     box_number = models.CharField(max_length=50, unique=True)
     box_type = models.ForeignKey(BoxType, on_delete=models.PROTECT)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
+    status = models.CharField(max_length=20, choices=BOX_STATUS, default='available')
     current_plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True, blank=True)
     plan_end_date = models.DateField(null=True, blank=True)
     remarks = models.TextField(blank=True)
@@ -60,7 +104,7 @@ class Box(models.Model):
 
     @property
     def is_assigned(self):
-        return hasattr(self, 'box_assignment_related') and self.box_assignment_related is not None
+        return self.box_assignment_related_id is not None
 
     @property
     def is_due(self):
@@ -79,8 +123,9 @@ class Box(models.Model):
 
     @property
     def days_until_due(self):
-        today = timezone.now().date()
-        return (self.plan_end_date - today).days if self.plan_end_date and self.is_assigned else None
+        if self.plan_end_date and self.is_assigned:
+            return (self.plan_end_date - timezone.now().date()).days
+        return None
 
     def assign_to_customer(self, customer, user):
         with transaction.atomic():
@@ -98,7 +143,7 @@ class Box(models.Model):
                 details=f'Assigned to {customer.name}',
                 user=user
             )
-            return True
+        return True
 
     def unassign_from_customer(self, user, reason=''):
         with transaction.atomic():
@@ -117,16 +162,19 @@ class Box(models.Model):
                 details=f'Unassigned from {customer.name}. Reason: {reason}',
                 user=user
             )
-            return True
+        return True
 
     def recharge(self, plan, months, user):
         if not self.is_assigned:
             raise ValueError('Cannot recharge unassigned box')
         with transaction.atomic():
-            self.current_plan = plan
             today = timezone.now().date()
             additional_days = months * 30
-            self.plan_end_date = (self.plan_end_date + timezone.timedelta(days=additional_days)) if self.plan_end_date and self.plan_end_date > today else (today + timezone.timedelta(days=additional_days))
+            if self.plan_end_date and self.plan_end_date > today:
+                self.plan_end_date += timezone.timedelta(days=additional_days)
+            else:
+                self.plan_end_date = today + timezone.timedelta(days=additional_days)
+            self.current_plan = plan
             self.status = 'assigned'
             self.save()
             BoxHistory.objects.create(
@@ -135,15 +183,10 @@ class Box(models.Model):
                 details=f'Recharged with {plan.name} for {months} months',
                 user=user
             )
-            return True
+        return True
 
 
 class Customer(models.Model):
-    STATUS_CHOICES = [
-        ('new', 'New'),
-        ('active', 'Active'),
-        ('inactive', 'Inactive')
-    ]
     customer_id = models.CharField(max_length=10, unique=True, null=True, blank=True)
     name = models.CharField(max_length=100)
     contact = models.CharField(max_length=15)
@@ -153,7 +196,7 @@ class Customer(models.Model):
     area = models.CharField(max_length=100)
     city = models.CharField(max_length=50)
     pincode = models.CharField(max_length=6)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='new')
+    status = models.CharField(max_length=10, choices=CUSTOMER_STATUS, default='new')
     due_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     last_payment_date = models.DateField(null=True, blank=True)
     remarks = models.TextField(blank=True)
@@ -174,11 +217,10 @@ class Customer(models.Model):
                 self.customer_id = f'{prefix}{next_num:06d}'
 
         today = timezone.now().date()
-        if self.assigned_box:
-            self.status = 'active' if self.assigned_box.plan_end_date and self.assigned_box.plan_end_date >= today else 'inactive'
+        if self.assigned_box and self.assigned_box.plan_end_date:
+            self.status = 'active' if self.assigned_box.plan_end_date >= today else 'inactive'
         else:
             self.status = 'new'
-
         super().save(*args, **kwargs)
 
 
@@ -195,23 +237,11 @@ class Technician(models.Model):
 
 
 class ServiceRequest(models.Model):
-    TYPE_CHOICES = [
-        ('new_connection', 'New Connection'),
-        ('complaint', 'Complaint'),
-        ('upgrade', 'Upgrade'),
-        ('other', 'Other'),
-    ]
-    STATUS_CHOICES = [
-        ('open', 'Open'),
-        ('assigned', 'Assigned'),
-        ('in_progress', 'In Progress'),
-        ('closed', 'Closed'),
-    ]
     ticket_id = models.CharField(max_length=10, unique=True, null=True, blank=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, blank=True)
-    request_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    request_type = models.CharField(max_length=20, choices=SERVICE_TYPE)
     description = models.TextField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    status = models.CharField(max_length=20, choices=SERVICE_STATUS, default='open')
     created_at = models.DateTimeField(auto_now_add=True)
     technician = models.ForeignKey(Technician, on_delete=models.SET_NULL, null=True, blank=True)
     assigned_at = models.DateTimeField(null=True, blank=True)
@@ -234,17 +264,6 @@ class ServiceRequest(models.Model):
 
 
 class Payment(models.Model):
-    PAYMENT_STATUS = [
-        ('paid', 'Paid'),
-        ('pending', 'Pending'),
-        ('failed', 'Failed')
-    ]
-    PAYMENT_METHODS = [
-        ('cash', 'Cash'),
-        ('upi', 'UPI'),
-        ('bank_transfer', 'Bank Transfer'),
-        ('other', 'Other')
-    ]
     box = models.ForeignKey(Box, on_delete=models.CASCADE)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True)
@@ -274,16 +293,8 @@ class Payment(models.Model):
 
 
 class BoxHistory(models.Model):
-    ACTION_CHOICES = [
-        ('assigned', 'Assigned'),
-        ('unassigned', 'Unassigned'),
-        ('recharged', 'Recharged'),
-        ('maintenance', 'Maintenance'),
-        ('repaired', 'Repaired'),
-        ('retired', 'Retired'),
-    ]
     box = models.ForeignKey(Box, on_delete=models.CASCADE)
-    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    action = models.CharField(max_length=20, choices=BOX_ACTIONS)
     details = models.TextField(blank=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
