@@ -1,49 +1,50 @@
 from django.db import models, transaction
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.core.validators import RegexValidator
+from dateutil.relativedelta import relativedelta
 
-
-# Reusable choices can be defined at the top
+# ---------- Choice Constants ----------
 BOX_STATUS = [
     ('available', 'Available'),
     ('assigned', 'Assigned'),
     ('pending_recharge', 'Pending Recharge'),
     ('faulty', 'Faulty'),
     ('retired', 'Retired'),
-    ('maintenance', 'Under Maintenance')
+    ('maintenance', 'Under Maintenance'),
 ]
 
 CUSTOMER_STATUS = [
     ('new', 'New'),
     ('active', 'Active'),
-    ('inactive', 'Inactive')
+    ('inactive', 'Inactive'),
 ]
 
 PAYMENT_STATUS = [
     ('paid', 'Paid'),
     ('pending', 'Pending'),
-    ('failed', 'Failed')
+    ('failed', 'Failed'),
 ]
 
 PAYMENT_METHODS = [
     ('cash', 'Cash'),
     ('upi', 'UPI'),
     ('bank_transfer', 'Bank Transfer'),
-    ('other', 'Other')
+    ('other', 'Other'),
 ]
 
 SERVICE_TYPE = [
     ('new_connection', 'New Connection'),
     ('complaint', 'Complaint'),
     ('upgrade', 'Upgrade'),
-    ('other', 'Other')
+    ('other', 'Other'),
 ]
 
 SERVICE_STATUS = [
     ('open', 'Open'),
     ('assigned', 'Assigned'),
     ('in_progress', 'In Progress'),
-    ('closed', 'Closed')
+    ('closed', 'Closed'),
 ]
 
 BOX_ACTIONS = [
@@ -52,11 +53,14 @@ BOX_ACTIONS = [
     ('recharged', 'Recharged'),
     ('maintenance', 'Maintenance'),
     ('repaired', 'Repaired'),
-    ('retired', 'Retired')
+    ('retired', 'Retired'),
 ]
 
 
+# ---------- Models ----------
+
 class BoxType(models.Model):
+    """Represents different types of boxes."""
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
 
@@ -65,6 +69,7 @@ class BoxType(models.Model):
 
 
 class Plan(models.Model):
+    """Represents an internet plan with pricing and validity."""
     name = models.CharField(max_length=100)
     box_type = models.ForeignKey(BoxType, on_delete=models.CASCADE, related_name='plans', null=True)
     speed = models.CharField(max_length=50)
@@ -72,7 +77,7 @@ class Plan(models.Model):
     validity_days = models.PositiveIntegerField()
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
-    created_by = models.CharField(max_length=100)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='plans_created')
     modified_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -87,6 +92,7 @@ class Plan(models.Model):
 
 
 class Box(models.Model):
+    """Represents a physical box assigned to customers."""
     box_number = models.CharField(max_length=50, unique=True)
     box_type = models.ForeignKey(BoxType, on_delete=models.PROTECT)
     status = models.CharField(max_length=20, choices=BOX_STATUS, default='available')
@@ -98,9 +104,16 @@ class Box(models.Model):
 
     class Meta:
         ordering = ['box_number']
+        indexes = [
+            models.Index(fields=['box_number']),
+            models.Index(fields=['status']),
+        ]
 
     def __str__(self):
         return f"{self.box_number} ({self.box_type.name})"
+
+    def __repr__(self):
+        return f"<Box {self.box_number}, Status: {self.status}>"
 
     @property
     def is_assigned(self):
@@ -132,7 +145,7 @@ class Box(models.Model):
             if self.status != 'available':
                 raise ValueError(f'Box {self.box_number} is not available (Status: {self.get_status_display()})')
             if customer.assigned_box:
-                raise ValueError(f'Customer {customer.name} already has a box assigned')
+                raise ValueError(f'Customer {customer.name} already has a box assigned.')
             self.status = 'pending_recharge'
             customer.assigned_box = self
             customer.save()
@@ -148,7 +161,7 @@ class Box(models.Model):
     def unassign_from_customer(self, user, reason=''):
         with transaction.atomic():
             if not self.is_assigned:
-                raise ValueError(f'Box {self.box_number} is not assigned')
+                raise ValueError(f'Box {self.box_number} is not currently assigned.')
             customer = self.box_assignment_related
             customer.assigned_box = None
             customer.save()
@@ -166,14 +179,14 @@ class Box(models.Model):
 
     def recharge(self, plan, months, user):
         if not self.is_assigned:
-            raise ValueError('Cannot recharge unassigned box')
+            raise ValueError('Cannot recharge an unassigned box.')
         with transaction.atomic():
             today = timezone.now().date()
-            additional_days = months * 30
-            if self.plan_end_date and self.plan_end_date > today:
-                self.plan_end_date += timezone.timedelta(days=additional_days)
-            else:
-                self.plan_end_date = today + timezone.timedelta(days=additional_days)
+            self.plan_end_date = (
+                self.plan_end_date + relativedelta(months=months)
+                if self.plan_end_date and self.plan_end_date > today
+                else today + relativedelta(months=months)
+            )
             self.current_plan = plan
             self.status = 'assigned'
             self.save()
@@ -187,15 +200,16 @@ class Box(models.Model):
 
 
 class Customer(models.Model):
+    """Represents a customer with contact and subscription details."""
     customer_id = models.CharField(max_length=10, unique=True, null=True, blank=True)
     name = models.CharField(max_length=100)
-    contact = models.CharField(max_length=15)
+    contact = models.CharField(max_length=15, validators=[RegexValidator(regex=r'^\d{10}$', message='Enter a valid 10-digit phone number')])
     house_number = models.CharField(max_length=50)
     floor = models.CharField(max_length=10, blank=True)
     block_number = models.CharField(max_length=10, blank=True)
     area = models.CharField(max_length=100)
     city = models.CharField(max_length=50)
-    pincode = models.CharField(max_length=6)
+    pincode = models.CharField(max_length=6, validators=[RegexValidator(regex=r'^\d{6}$', message='Enter a valid 6-digit pincode')])
     status = models.CharField(max_length=10, choices=CUSTOMER_STATUS, default='new')
     due_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     last_payment_date = models.DateField(null=True, blank=True)
@@ -225,6 +239,7 @@ class Customer(models.Model):
 
 
 class Technician(models.Model):
+    """Technician responsible for handling service requests."""
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=100, blank=True, null=True, default="Technician")
     phone = models.CharField(max_length=20, blank=True, null=True)
@@ -237,6 +252,7 @@ class Technician(models.Model):
 
 
 class ServiceRequest(models.Model):
+    """Tracks support tickets and new connection requests."""
     ticket_id = models.CharField(max_length=10, unique=True, null=True, blank=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, blank=True)
     request_type = models.CharField(max_length=20, choices=SERVICE_TYPE)
@@ -264,6 +280,7 @@ class ServiceRequest(models.Model):
 
 
 class Payment(models.Model):
+    """Stores customer payment details."""
     box = models.ForeignKey(Box, on_delete=models.CASCADE)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     plan = models.ForeignKey(Plan, on_delete=models.SET_NULL, null=True)
@@ -275,7 +292,7 @@ class Payment(models.Model):
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='payments_updated')
     remarks = models.TextField(blank=True)
     transaction_id = models.CharField(max_length=100, blank=True)
-    months_recharged = models.IntegerField(default=1)
+    months_recharged = models.PositiveIntegerField(default=1)
 
     class Meta:
         ordering = ['-date']
@@ -288,12 +305,13 @@ class Payment(models.Model):
         return {
             'paid': 'success',
             'pending': 'warning',
-            'failed': 'danger'
+            'failed': 'danger',
         }.get(self.status, 'secondary')
 
 
 class BoxHistory(models.Model):
-    box = models.ForeignKey(Box, on_delete=models.CASCADE)
+    """Logs all changes to a Box: assignments, recharges, retirements, etc."""
+    box = models.ForeignKey(Box, on_delete=models.CASCADE, related_name='histories')
     action = models.CharField(max_length=20, choices=BOX_ACTIONS)
     details = models.TextField(blank=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
