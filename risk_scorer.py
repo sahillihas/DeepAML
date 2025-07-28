@@ -1,79 +1,90 @@
-from typing import Dict
+from typing import Dict, Optional
+from enum import Enum
+
+
+class RiskLevel(Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
 
 class RiskScorer:
-    def __init__(self):
-        # Thresholds for categorizing risk levels
-        self.thresholds = {
-            "HIGH": 0.7,
-            "MEDIUM": 0.5,
-            "LOW": 0.3
-        }
+    """
+    Class to compute risk scores based on weighted transaction features 
+    and determine the associated risk level.
+    """
 
-        # Feature weights used in risk score computation
-        self.weights: Dict[str, float] = {
-            # Activity-based
-            'frequency': 0.1,
-            'velocity': 0.15,
-            'amount_variance': 0.05,
+    # Thresholds for determining risk levels
+    RISK_THRESHOLDS: Dict[RiskLevel, float] = {
+        RiskLevel.HIGH: 0.7,
+        RiskLevel.MEDIUM: 0.5,
+        RiskLevel.LOW: 0.3
+    }
 
-            # Risk-based
-            'country_risk': 0.2,
-            'cross_border': 0.05,
-            'structuring_risk': 0.15,
-            'network_risk': 0.1,
+    # Weights assigned to each transaction feature
+    FEATURE_WEIGHTS: Dict[str, float] = {
+        # Activity-based
+        'frequency': 0.1,
+        'velocity': 0.15,
+        'amount_variance': 0.05,
 
-            # Time-based
-            'time_risk': 0.05,
-            'burst_risk': 0.05,
+        # Risk-based
+        'country_risk': 0.2,
+        'cross_border': 0.05,
+        'structuring_risk': 0.15,
+        'network_risk': 0.1,
 
-            # Amount-based
-            'amount_risk': 0.08,
-            'round_number': 0.02
-        }
+        # Time-based
+        'time_risk': 0.05,
+        'burst_risk': 0.05,
+
+        # Amount-based
+        'amount_risk': 0.08,
+        'round_number': 0.02
+    }
 
     def calculate_risk_score(self, features: Dict[str, float]) -> float:
         """
-        Calculate a weighted risk score from transaction features.
+        Calculates the weighted risk score from input features.
 
         Args:
-            features (Dict[str, float]): A dictionary of feature values.
+            features: Dictionary of feature name to feature value.
 
         Returns:
-            float: Risk score normalized between 0.0 and 1.0.
+            A float score between 0.0 and 1.0.
         """
         score = sum(
-            float(features.get(feature, 0)) * weight
-            for feature, weight in self.weights.items()
+            features.get(feature, 0.0) * weight
+            for feature, weight in self.FEATURE_WEIGHTS.items()
         )
-        return min(1.0, max(0.0, score))
+        return max(0.0, min(1.0, score))  # Clamp between 0 and 1
 
-    def get_risk_level(self, risk_score: float) -> str:
+    def get_risk_level(self, risk_score: float) -> RiskLevel:
         """
-        Categorize risk score into a risk level.
+        Maps the risk score to a risk category.
 
         Args:
-            risk_score (float): The calculated risk score.
+            risk_score: Risk score between 0.0 and 1.0.
 
         Returns:
-            str: "HIGH", "MEDIUM", or "LOW".
+            RiskLevel: LOW, MEDIUM, or HIGH.
         """
-        if risk_score >= self.thresholds["HIGH"]:
-            return "HIGH"
-        elif risk_score >= self.thresholds["MEDIUM"]:
-            return "MEDIUM"
-        return "LOW"
+        if risk_score >= self.RISK_THRESHOLDS[RiskLevel.HIGH]:
+            return RiskLevel.HIGH
+        elif risk_score >= self.RISK_THRESHOLDS[RiskLevel.MEDIUM]:
+            return RiskLevel.MEDIUM
+        return RiskLevel.LOW
 
-    def is_suspicious(self, risk_score: float, threshold: float = None) -> bool:
+    def is_suspicious(self, risk_score: float, threshold: Optional[float] = None) -> bool:
         """
-        Determine whether a transaction is suspicious.
+        Determines if the transaction is suspicious based on threshold.
 
         Args:
-            risk_score (float): The calculated risk score.
-            threshold (float, optional): Custom threshold for suspicion. 
-                                         Defaults to HIGH risk threshold.
+            risk_score: The calculated risk score.
+            threshold: Optional custom threshold for suspicion.
 
         Returns:
-            bool: True if suspicious, False otherwise.
+            True if score is greater than or equal to the threshold.
         """
-        threshold = threshold if threshold is not None else self.thresholds["HIGH"]
-        return risk_score >= threshold
+        effective_threshold = threshold if threshold is not None else self.RISK_THRESHOLDS[RiskLevel.HIGH]
+        return risk_score >= effective_threshold
