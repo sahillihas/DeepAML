@@ -1,28 +1,29 @@
 from typing import Dict, Optional
-from enum import Enum
+from enum import Enum, auto
 
 
 class RiskLevel(Enum):
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
+    LOW = auto()
+    MEDIUM = auto()
+    HIGH = auto()
+
+    def __str__(self):
+        return self.name
 
 
 class RiskScorer:
     """
-    Class to compute risk scores based on weighted transaction features 
-    and determine the associated risk level.
+    RiskScorer evaluates the risk score of a transaction based on a set of features
+    and categorizes it into LOW, MEDIUM, or HIGH risk levels.
     """
 
-    # Thresholds for determining risk levels
-    RISK_THRESHOLDS: Dict[RiskLevel, float] = {
+    _THRESHOLDS: Dict[RiskLevel, float] = {
         RiskLevel.HIGH: 0.7,
         RiskLevel.MEDIUM: 0.5,
         RiskLevel.LOW: 0.3
     }
 
-    # Weights assigned to each transaction feature
-    FEATURE_WEIGHTS: Dict[str, float] = {
+    _FEATURE_WEIGHTS: Dict[str, float] = {
         # Activity-based
         'frequency': 0.1,
         'velocity': 0.15,
@@ -45,46 +46,52 @@ class RiskScorer:
 
     def calculate_risk_score(self, features: Dict[str, float]) -> float:
         """
-        Calculates the weighted risk score from input features.
+        Calculates a risk score by applying predefined feature weights.
 
         Args:
-            features: Dictionary of feature name to feature value.
+            features (Dict[str, float]): Feature values of a transaction.
 
         Returns:
-            A float score between 0.0 and 1.0.
+            float: Risk score clamped between 0.0 and 1.0.
         """
-        score = sum(
-            features.get(feature, 0.0) * weight
-            for feature, weight in self.FEATURE_WEIGHTS.items()
-        )
-        return max(0.0, min(1.0, score))  # Clamp between 0 and 1
+        total_score = 0.0
+        for feature, weight in self._FEATURE_WEIGHTS.items():
+            value = features.get(feature, 0.0)
+            if not isinstance(value, (int, float)):
+                raise ValueError(f"Feature '{feature}' must be a number, got {type(value)}")
+            total_score += value * weight
+
+        return min(1.0, max(0.0, total_score))  # Ensure score is within [0, 1]
 
     def get_risk_level(self, risk_score: float) -> RiskLevel:
         """
-        Maps the risk score to a risk category.
+        Classifies a numerical risk score into a RiskLevel category.
 
         Args:
-            risk_score: Risk score between 0.0 and 1.0.
+            risk_score (float): Score between 0.0 and 1.0.
 
         Returns:
-            RiskLevel: LOW, MEDIUM, or HIGH.
+            RiskLevel: Enum category for risk.
         """
-        if risk_score >= self.RISK_THRESHOLDS[RiskLevel.HIGH]:
+        if risk_score >= self._THRESHOLDS[RiskLevel.HIGH]:
             return RiskLevel.HIGH
-        elif risk_score >= self.RISK_THRESHOLDS[RiskLevel.MEDIUM]:
+        elif risk_score >= self._THRESHOLDS[RiskLevel.MEDIUM]:
             return RiskLevel.MEDIUM
-        return RiskLevel.LOW
+        else:
+            return RiskLevel.LOW
 
     def is_suspicious(self, risk_score: float, threshold: Optional[float] = None) -> bool:
         """
-        Determines if the transaction is suspicious based on threshold.
+        Determines if a transaction is suspicious based on the risk score and threshold.
 
         Args:
-            risk_score: The calculated risk score.
-            threshold: Optional custom threshold for suspicion.
+            risk_score (float): Risk score from 0.0 to 1.0.
+            threshold (Optional[float]): Custom threshold for suspicion.
 
         Returns:
-            True if score is greater than or equal to the threshold.
+            bool: True if risk_score >= threshold, else False.
         """
-        effective_threshold = threshold if threshold is not None else self.RISK_THRESHOLDS[RiskLevel.HIGH]
+        effective_threshold = threshold if threshold is not None else self._THRESHOLDS[RiskLevel.HIGH]
+        if not isinstance(effective_threshold, (int, float)):
+            raise ValueError("Threshold must be a numeric value.")
         return risk_score >= effective_threshold
