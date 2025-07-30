@@ -1,4 +1,4 @@
-# DeepAML: A Real-Time Anti-Money Laundering Detection System - Attack Simulator 
+# DeepAML: A Real-Time Anti-Money Laundering Detection System - with Attack Simulator 
 
 ## 🚀 Overview
 
