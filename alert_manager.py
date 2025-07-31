@@ -11,7 +11,6 @@ class AlertManager:
     """Handles generation and classification of AML alerts based on transaction risk scores."""
 
     def __init__(self):
-        # You can customize thresholds per transaction type
         self.thresholds = {
             'default': {'HIGH_RISK': 0.9, 'MEDIUM_RISK': 0.7},
             'international': {'HIGH_RISK': 0.85, 'MEDIUM_RISK': 0.6},
