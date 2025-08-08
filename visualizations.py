@@ -53,18 +53,31 @@ class TransactionVisualizer:
         logger.info("Visualization module initialized")
 
     def _setup_signal_handlers(self):
-        """Set up handlers for graceful shutdown"""
-        def signal_handler(sig, frame):
-            logger.info("Shutting down visualization server...")
+    """Set up signal handlers for graceful shutdown of the visualization server."""
+
+    def signal_handler(sig, frame):
+        logger.info("Received signal %s. Initiating graceful shutdown...", sig)
+
+        try:
             if self.app:
-                func = request.environ.get('werkzeug.server.shutdown')
-                if func is None:
-                    sys.exit(0)
-                func()
+                shutdown_func = None
+                try:
+                    from flask import request
+                    shutdown_func = request.environ.get('werkzeug.server.shutdown')
+                except RuntimeError:
+                    logger.warning("No active request context. Using sys.exit instead.")
+
+                if shutdown_func:
+                    shutdown_func()
+                else:
+                    logger.info("No shutdown function found. Exiting process.")
+            else:
+                logger.info("No application instance found. Exiting process.")
+        except Exception as e:
+            logger.error("Error during shutdown: %s", e)
+        finally:
             sys.exit(0)
-        
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
+
 
     def _get_risk_color(self, risk_score: float) -> str:
         """Get color based on risk score"""
